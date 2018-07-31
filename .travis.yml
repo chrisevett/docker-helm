@@ -1,13 +1,27 @@
 sudo: required
-
 services:
   - docker
+env:
+  global:
+    - IMAGE_NAME=chrisevett/helm
+    - REGISTRY_USER=$DOCKER_USERNAME
+    - REGISTRY_PASS=$DOCKER_PASSWORD
+    - VERSION="1.$TRAVIS_BUILD_NUMBER"
 
-before_install:
-  - docker build -t chrisevett/helm:1.0 .
- 
+before_script:
+  - docker pull "$IMAGE_NAME" || true
+script:
+  - docker build --pull --cache-from "$IMAGE_NAME" --tag "$IMAGE_NAME" .
+
+after_script:
+  - docker images
+
+before_deploy:
+  - docker login -u "$REGISTRY_USER" -p "$REGISTRY_PASS"
+  - docker tag "$IMAGE_NAME" "${IMAGE_NAME}:latest"
+  - docker tag "$IMAGE_NAME" "${IMAGE_NAME}:${VERSION}"
 deploy:
   provider: script
-  script: bash docker_push
+  script: docker push "${IMAGE_NAME}:latest" && docker push "${IMAGE_NAME}:${VERSION}"
   on:
     branch: master
